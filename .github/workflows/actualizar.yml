@@ -1,0 +1,54 @@
+name: Leer GoatCounter y publicar
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: vgi-uso
+  cancel-in-progress: false
+
+jobs:
+  leer-y-publicar:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.publicar.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Leer el panel público de GoatCounter
+        id: lector
+        run: node lector.mjs
+
+      - name: Guardar la lectura en el historial del repositorio
+        if: steps.lector.outputs.cambio == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add datos/uso.json
+          git commit -m "Lectura $(TZ=America/Bogota date '+%Y-%m-%d %H:%M') (hora de Colombia)"
+          git pull --rebase origin main
+          git push origin HEAD:main
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - name: Publicar en GitHub Pages
+        id: publicar
+        uses: actions/deploy-pages@v4
