@@ -122,7 +122,7 @@ function pintarVivo(){
   const hora = new Intl.DateTimeFormat('es-CO', {timeZone: 'America/Bogota', hour: 'numeric', minute: '2-digit'}).format(t);
   const fecha = new Intl.DateTimeFormat('es-CO', {timeZone: 'America/Bogota', day: 'numeric', month: 'short'}).format(t);
   let est, texto;
-  if (min < 40) { est = 'vivo'; texto = 'En vivo · ' + (min < 1.5 ? 'hace un momento' : 'hace ' + Math.round(min) + ' min'); }
+  if (min < 75) { est = 'vivo'; texto = 'En vivo · ' + (min < 1.5 ? 'hace un momento' : 'hace ' + Math.round(min) + ' min'); }
   else if (min < 360) { est = 'retraso'; texto = 'Última lectura hace ' + (min < 90 ? Math.round(min) + ' min' : f1(min / 60) + ' h'); }
   else { est = 'caido'; texto = 'Sin lectura desde el ' + fecha; }
   chip.dataset.estado = est; txt.textContent = texto;
