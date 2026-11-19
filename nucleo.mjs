@@ -58,6 +58,11 @@ export const META = {
   eq5d: ['EuroQol-5D-5L', 'Funcional', 'Participación', '2026-09-28']
 };
 
+// Etiquetas de origen (utm_source). Las que empiezan por "prueba" son pruebas del autor
+// y no se muestran en el tablero; quedan en los datos marcadas con prueba: true.
+export const PRUEBA = /^prueba/;
+export const GRUPO_ORIGEN = e => e.startsWith('acgg') ? 'ACGG' : PRUEBA.test(e) ? 'Prueba' : 'Otro';
+
 const NOMBRES = {
   '(unknown)': 'Desconocido', Phones: 'Celulares', 'Tablets and large phones': 'Tabletas y celulares grandes',
   'Computer monitors': 'Computadores', 'Computer monitors larger than HD': 'Monitores mayores que HD',
@@ -132,6 +137,9 @@ export async function leer(pedir, fin = hoyBogota()){
   const porDia = stats => Object.fromEntries((stats || []).map(s => [s.day, s]));
   const A = porDia(app.stats);
   const F = filas.filter(f => f.ruta.startsWith('ficha/')).map(f => ({id: f.ruta.slice(6), total: f.total, d: porDia(f.stats)}));
+  // Desde la 2.15.2 de la app: un enlace con ?utm_source=<etiqueta> registra el evento
+  // "origen/<etiqueta>", contado una vez por sesión. No se suma a las aperturas de fichas.
+  const O = filas.filter(f => f.ruta.startsWith('origen/')).map(f => ({etiqueta: f.ruta.slice(7), total: f.total, d: porDia(f.stats)}));
 
   const dias = fechas.map(fecha => {
     const h = rellenar(A[fecha] && A[fecha].hourly);
@@ -156,6 +164,9 @@ export async function leer(pedir, fin = hoyBogota()){
     for (const [dim, w] of Object.entries(PANELES)) audiencia[k][dim] = await leerPanel(pedir, w, ini < INICIO ? INICIO : ini, f2);
   }
 
+  const origenes = O.map(o => ({etiqueta: o.etiqueta, grupo: GRUPO_ORIGEN(o.etiqueta), prueba: PRUEBA.test(o.etiqueta), total: o.total,
+    dia: fechas.map(fecha => (o.d[fecha] && o.d[fecha].daily) || 0)})).sort((a, b) => b.total - a.total);
+
   // comprobaciones: si algo no cuadra, se lanza un error y no se publica nada nuevo
   const sumaSes = dias.reduce((t, d) => t + d.sesiones, 0);
   const sumaHoras = dias.reduce((t, d) => t + d.h.reduce((a, b) => a + b, 0), 0);
@@ -166,11 +177,12 @@ export async function leer(pedir, fin = hoyBogota()){
   if (sumaFichas !== sumaApDia) problemas.push(`las aperturas por ficha suman ${sumaFichas} y por día ${sumaApDia}`);
   if (F.length < 40) problemas.push(`solo llegaron ${F.length} fichas`);
   if (!audiencia.todo.pais.length) problemas.push('no llegaron los países');
+  origenes.forEach(o => { const s = o.dia.reduce((a, b) => a + b, 0); if (s !== o.total) problemas.push(`el origen ${o.etiqueta} suma ${s} por día y el panel dice ${o.total}`); });
   if (problemas.length) throw new Error('Lectura inconsistente: ' + problemas.join('; '));
 
   return {
     version: 1, fuente: ORIGEN, ruta: RUTA_APP, zona: 'America/Bogota', inicio: INICIO, fin,
-    leido: new Date().toISOString(), fechas, dias, fichas, audiencia,
+    leido: new Date().toISOString(), fechas, dias, fichas, audiencia, origenes,
     fichas_sin_clasificar: F.filter(f => !META[f.id]).map(f => f.id)
   };
 }

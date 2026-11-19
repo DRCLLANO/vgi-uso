@@ -425,7 +425,28 @@ function vistaAudiencia(sec){
     h('div', {class: 'rejilla'},
       tarjeta('Países', null, h('div', {class: 'caja', style: 'border-top:0;max-height:34rem'}, barras)),
       tarjeta('Cómo llegan y desde qué', 'Cada barra suma el 100 %. "Sin referente" es lo habitual cuando el enlace se abre desde WhatsApp o desde otra app.',
-        apilada('Dispositivo', aud.pantalla, 3), apilada('Sistema operativo', aud.sistema, 4), apilada('Navegador', aud.navegador, 3), apilada('De dónde llegan', aud.referente, 4, true))));
+        apilada('Dispositivo', aud.pantalla, 3), apilada('Sistema operativo', aud.sistema, 4), apilada('Navegador', aud.navegador, 3), apilada('De dónde llegan', aud.referente, 4, true))),
+    tarjetaOrigen(ventana(estado.p).i0));
+}
+
+/* Origen de las visitas: enlaces con etiqueta utm_source (desde la 2.15.2 de la app, 19-nov-2026). */
+const NOMBRE_ORIGEN = {'acgg-web': 'ACGG · página web (acgg.org.co)', 'acgg-correo': 'ACGG · correo a los asociados'};
+const DESDE_ORIGEN = '2026-11-19';
+function tarjetaOrigen(i0){
+  const c = C(), os = (D().origenes || []).filter(o => !o.prueba).map(o => ({...o, p: o.dia.slice(i0).reduce((a, b2) => a + b2, 0),
+    primero: D().fechas[o.dia.findIndex(v => v > 0)] || null})).sort((a, b2) => b2.p - a.p || b2.total - a.total);
+  const acgg = os.filter(o => o.grupo === 'ACGG'), tA = suma(acgg, 'p'), tAll = suma(acgg, 'total');
+  const nota = 'Sesiones que entraron por un enlace con etiqueta de origen. Cada sesión cuenta una vez por etiqueta, aunque ya tuviera la app abierta. Se registran desde la versión 2.15.2 de la app (' + fLarga(DESDE_ORIGEN) + '); antes de esa fecha no hay datos.';
+  const cifras = h('div', {class: 'cifras'},
+    cifra('Desde la ACGG', fInt(tA), acgg.length ? 'sesiones en el periodo; ' + fInt(tAll) + ' desde el inicio' : 'sin visitas todavía', true),
+    ...['acgg-web', 'acgg-correo'].map(e => { const o = acgg.find(x => x.etiqueta === e); return cifra(NOMBRE_ORIGEN[e], fInt(o ? o.p : 0), o && o.primero ? 'primera visita el ' + fLarga(o.primero) : 'sin visitas todavía'); }));
+  const mx = d3.max(os, o => o.p) || 1;
+  const tabla = os.length ? h('div', {class: 'caja', style: 'margin-top:14px'}, h('table', null,
+    h('thead', null, h('tr', null, h('th', {text: 'Enlace'}), h('th', {class: 'ocn', text: 'Etiqueta'}), h('th', {class: 'n', text: 'Sesiones en el periodo'}), h('th', {class: 'n ocn', text: 'Desde el inicio'}))),
+    h('tbody', null, os.map(o => h('tr', null, h('td', {text: NOMBRE_ORIGEN[o.etiqueta] || o.etiqueta}), h('td', {class: 'ocn'}, h('code', {text: o.etiqueta})),
+      h('td', {class: 'n', style: 'white-space:nowrap'}, fInt(o.p), h('span', {class: 'barra', style: `width:${Math.max(2, o.p / mx * 64)}px;background:${o.grupo === 'ACGG' ? c.c1 : c.gris}`})),
+      h('td', {class: 'n ocn', text: fInt(o.total)})))))) : null;
+  return tarjeta('Enlaces con etiqueta de origen', nota, cifras, tabla);
 }
 
 /* ---------- 7. Datos y método ---------- */
@@ -435,6 +456,7 @@ function vistaDatos(sec){
   const csvHoras = () => ['fecha,hora,sesiones,aperturas_fichas'].concat(Dd.dias.flatMap(d => d.h.map((v, i) => [d.fecha, i, v, d.ah[i]].join(',')))).join('\n') + '\n';
   const csvFichas = () => ['fecha,id,escala,eje,grupo,aperturas'].concat(Dd.fichas.flatMap(f => f.dia.map((v, i) => [Dd.fechas[i], f.id, f.escala, f.eje, f.grupo, v].map(csvCelda).join(',')))).join('\n') + '\n';
   const csvAud = () => ['periodo,desde,hasta,dimension,categoria,visitas_mas_eventos'].concat(Object.entries(Dd.audiencia).flatMap(([p, a]) => ['pais', 'pantalla', 'sistema', 'navegador', 'referente'].flatMap(k => a[k].map(([n, v]) => [p, a.desde, a.hasta, k, n, v].map(csvCelda).join(','))))).join('\n') + '\n';
+  const csvOrigen = () => ['fecha,etiqueta,grupo,es_prueba,sesiones'].concat((Dd.origenes || []).flatMap(o => o.dia.map((v, i) => [Dd.fechas[i], o.etiqueta, o.grupo, o.prueba ? 'sí' : 'no', v].map(csvCelda).join(',')))).join('\n') + '\n';
   const sello = Dd.leido.slice(0, 16).replace(/[:T]/g, '-');
   const hoy = new Intl.DateTimeFormat('es-CO', {timeZone: 'America/Bogota', day: 'numeric', month: 'long', year: 'numeric'}).format(new Date());
   const btn = (txt, fn) => h('button', {type: 'button', class: 'boton', onclick: fn, text: txt});
@@ -445,12 +467,14 @@ function vistaDatos(sec){
       h('li', null, 'Una apertura de ficha se registra una vez por sesión; mide cuántas sesiones consultaron cada escala, no cuántos cálculos se completaron ni su uso clínico.'),
       h('li', null, 'Países, dispositivos, sistemas y referentes se cuentan sobre visitas más eventos: sus porcentajes son aproximados.'),
       h('li', null, 'La analítica empezó el 28 de septiembre de 2026 a las 22:00 (versión 2.10.11), por eso ese día va parcial. El día en curso llega solo hasta la hora de la lectura. Las horas son de Colombia (UTC-5).'),
-      h('li', null, 'Los promedios por día usan solo días completos, y los festivos de Colombia cuentan como no laborables.'))),
+      h('li', null, 'Los promedios por día usan solo días completos, y los festivos de Colombia cuentan como no laborables.'),
+      h('li', null, 'Desde la versión 2.15.2 de la app (19 de noviembre de 2026), quien entra por un enlace con etiqueta de origen (por ejemplo, el de la ACGG) registra el evento origen/<etiqueta>, una vez por sesión. Ese evento no se suma a las aperturas de fichas. Las etiquetas que empiezan por "prueba" son pruebas del autor: quedan en los datos, marcadas, pero no se muestran.'))),
     tarjeta('Descargar los datos', 'Archivos CSV con la lectura que estás viendo, para revisarlos o analizarlos por tu cuenta.', h('div', {class: 'descargas'},
       btn('Sesiones por día', () => descargar('vgi_uso_diario_' + sello + '.csv', csvDias())),
       btn('Sesiones por hora', () => descargar('vgi_uso_por_hora_' + sello + '.csv', csvHoras())),
       btn('Fichas por día', () => descargar('vgi_fichas_por_dia_' + sello + '.csv', csvFichas())),
       btn('Audiencia', () => descargar('vgi_audiencia_' + sello + '.csv', csvAud())),
+      btn('Origen por día', () => descargar('vgi_origen_por_dia_' + sello + '.csv', csvOrigen())),
       h('a', {class: 'boton', href: URL_DATOS, download: 'vgi_uso_' + sello + '.json', text: 'Todo en JSON'}))),
     tarjeta('Historial público', null, h('p', {class: 'nota', style: 'margin:0'}, 'Cada lectura que cambia las cifras queda guardada con su fecha y hora en el ', h('a', {href: REPO + '/commits/main/datos/uso.json', target: '_blank', rel: 'noopener', text: 'historial del repositorio'}), ', y el código que la produce está en ', h('a', {href: REPO, target: '_blank', rel: 'noopener', text: 'github.com/DRCLLANO/vgi-uso'}), '. Así cualquiera puede comprobar de dónde sale cada número.')),
     tarjeta('Cómo citar', null, h('div', {class: 'cita', text: 'Llano Ceballos CC. Uso de VGI Digital [tablero en línea]. Datos de GoatCounter (vgidigitalco), actualizados cada 15 minutos. Disponible en: https://drcllano.github.io/vgi-uso/ (consultado el ' + hoy + ').'})));
