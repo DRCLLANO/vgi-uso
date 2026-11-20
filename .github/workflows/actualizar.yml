@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.publicar.outputs.page_url }}
+      url: ${{ steps.publicar.outputs.page_url || steps.reintento.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -49,6 +49,19 @@ jobs:
         with:
           path: .
 
+      # A veces GitHub tarda en registrar el paquete recién subido y la
+      # publicación falla con "No artifacts named github-pages". Se reintenta
+      # una vez tras una pausa en lugar de dar el turno por fallido.
       - name: Publicar en GitHub Pages
         id: publicar
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+
+      - name: Esperar antes de reintentar
+        if: steps.publicar.outcome == 'failure'
+        run: sleep 45
+
+      - name: Reintentar la publicación
+        id: reintento
+        if: steps.publicar.outcome == 'failure'
         uses: actions/deploy-pages@v4
