@@ -9,7 +9,7 @@ Tablero público con el uso real de [VGI Digital](https://drcllano.github.io/vgi
 - Cada 15 minutos, una acción de GitHub (`.github/workflows/actualizar.yml`) ejecuta `lector.mjs`, que lee el panel público de GoatCounter de la app ([vgidigitalco.goatcounter.com](https://vgidigitalco.goatcounter.com)) y guarda el resultado en `datos/uso.json`.
 - Antes de guardar, el lector comprueba que las sesiones por día, por hora y por ficha cuadren entre sí y con el total del panel. Si algo no cuadra, no publica nada nuevo.
 - Cuando las cifras cambian, la lectura queda en el historial del repositorio con su fecha y hora (hora de Colombia). Ese historial es el registro público y verificable del uso.
-- La página (`index.html`, `app.js`, `estilos.css`) muestra los datos por periodo (7 días, 30 días o todo) y por secciones: panorama, día a día, reloj, mapa de calor, fichas, audiencia, y datos y método, con descargas en CSV.
+- La página (`index.html`, `app.js`, `estilos.css`) muestra los datos por periodo (7 días, 30 días o todo) y por secciones: panorama, día a día, reloj, mapa de calor, fichas, audiencia (con el origen de las visitas, incluida la ACGG), y datos y método, con descargas en CSV.
 
 Este repositorio solo lee estadísticas públicas y agregadas. No toca el código ni el sitio de VGI Digital, y no usa claves ni datos personales.
 
@@ -19,6 +19,7 @@ Este repositorio solo lee estadísticas públicas y agregadas. No toca el códig
 - Una apertura de ficha se registra una vez por sesión: mide consultas a cada escala, no cálculos completados ni uso clínico.
 - Países, dispositivos, sistemas y referentes se cuentan sobre visitas más eventos; sus porcentajes son aproximados.
 - La analítica empezó el 28 de septiembre de 2026 a las 22:00 (hora de Colombia).
+- Desde la versión 2.15.2 de la app (19 de noviembre de 2026), quien entra por un enlace con etiqueta de origen (`?utm_source=<etiqueta>`, por ejemplo `acgg-web` o `acgg-correo`) registra el evento `origen/<etiqueta>`, una vez por sesión. El lector lo guarda en `origenes` y la sección Audiencia lo muestra; no se suma a las aperturas de fichas. Las etiquetas que empiezan por `prueba` son pruebas del autor: quedan en los datos marcadas con `prueba: true` y no se muestran.
 
 ## Ejecutar el lector a mano
 
